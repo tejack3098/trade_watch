@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:TradeWatch/utils/DatabaseHelper.dart';
+import 'package:intl/intl.dart';
 
 class CompaniesScreen extends StatefulWidget  {
   const CompaniesScreen({super.key});
@@ -117,7 +118,7 @@ class _CompaniesScreenState extends State<CompaniesScreen> {
                                 ),
                                 const SizedBox(width: 10),
                                 Text(
-                                  'Date: ${_filteredCompanies[index]['date']}',
+                                  ' ${DateFormat('y MMM d hh:mm a').format(DateTime.parse(_filteredCompanies[index]['date']))}',
                                   style: const TextStyle(color: Colors.white70),
                                 ),
                               ],

@@ -35,17 +35,19 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS companydata (
         id INTEGER PRIMARY KEY,
         company_name TEXT NOT NULL,
-        date DATE NOT NULL
+        date DATETIME NOT NULL,
+        notification_id INTEGER
       )
     ''');
   }
 
   // Insert a new company with date into the database
-  Future<int> insertCompany(String name, DateTime date) async {
+  Future<int> insertCompany(String name, DateTime date, int notificationId) async {
     Database db = await database;
     Map<String, dynamic> company = {
       'company_name': name,
-      'date': DateFormat('yyyy-MM-dd').format(date),
+      'date': date.toIso8601String(),
+      'notification_id': notificationId
     };
     return await db.insert('companydata', company);
   }

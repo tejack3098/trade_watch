@@ -1,139 +1,98 @@
-import 'package:TradeWatch/utils/DatabaseHelper.dart';
+import 'dart:math';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
 
+  static final NotificationService _notificationService = NotificationService._internal();
+
+  factory NotificationService(){
+    return _notificationService;
+  }
+
+  NotificationService._internal();
+
+  Random random = Random();
+
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  Future<void> initNotificationService() async {
+    AndroidInitializationSettings initializationSettingsAndroid =
+    const AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    var initializationSettingsIOS = DarwinInitializationSettings(
+        requestAlertPermission: true,
+        requestBadgePermission: true,
+        requestSoundPermission: true,
+        onDidReceiveLocalNotification:
+            (int id, String? title, String? body, String? payload) async {});
+
+    var initializationSettings = InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsIOS);
+
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
   notificationDetails() {
     return const NotificationDetails(
-        android: AndroidNotificationDetails('tradingReminderChannelId', 'tradingReminderChannelName',
+        android: AndroidNotificationDetails(
+            'tradingReminderChannelId',
+            'tradingReminderChannelName',
+            channelDescription:'tradingReminderDescription',
             importance: Importance.max,
             priority: Priority.max,
             playSound: true),
         iOS: DarwinNotificationDetails());
   }
 
-
-  Future checkNotificationsForToday(FlutterLocalNotificationsPlugin flip) async {
-    final databaseHelper = DatabaseHelper();
-
-    List<Map<String, dynamic>> companies =
-    await databaseHelper.getAllCompanies();
-
-    DateTime currentDate = DateTime.now();
-    String formattedDate = DateFormat('yyyy-MM-dd').format(currentDate);
-    String notificationIdDate = DateFormat('ddMMyyyy').format(currentDate);
-    int notificationId = int.parse(notificationIdDate);
-
-    bool hasCompaniesWithTodayDate =
-    companies.any((company) => company['date'] == formattedDate);
-
-    DateTime notificationDate = DateTime(currentDate.year,currentDate.month,currentDate.day,23,59,59);
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-
-    print('------------------NotificationDate-----------------------------------');
-    print(prefs.getString("notificationDate"));
-    print('---------------------------------------------------------------------');
-
-    if (hasCompaniesWithTodayDate && prefs.getString("notificationDate") != notificationIdDate) {
-
-      print('-------------------------------------------------------------------');
-      print('Schedule Notifications Called');
-      print('-------------------------------------------------------------------');
-
-      if(prefs.getString("notificationDate") != notificationIdDate){
-        prefs.setString("notificationDate", notificationIdDate);
-        prefs.setBool("callNotification", true);
-      }
-
-      print('------------------NotificationDate--and--CallNotification-------------------------------');
-      print(prefs.getString("notificationDate"));
-      print(prefs.getBool("callNotification"));
-      print('---------------------------------------------------------------------');
-
-      if(prefs.getBool("callNotification") ?? true){
-        await scheduleNotifications(notificationDate, notificationId, flip);
-        prefs.setBool("callNotification", false);
-      }
-
-    }
-  }
-
- Future scheduleNotifications(DateTime notificationDate, int notificationId, FlutterLocalNotificationsPlugin flip) async  {
-
-   await showNotification(
-       id: notificationId + 5000,
-       title: 'Trading Reminder',
-       body: 'Some companies have result day today!',
-       scheduledNotificationDateTime: notificationDate,
-       flip: flip,
-       hour: 15,
-       min: 20);
-
-   print('-------------------------------------------------------------------');
-   print('Show Notifications Called');
-   print('-------------------------------------------------------------------');
-   showNotification(
-       id: notificationId + 6000,
-       title: 'Trading Reminder',
-       body: 'Some companies have result day today!',
-       scheduledNotificationDateTime: notificationDate,
-       flip: flip,
-       hour: 15,
-       min: 25);
-
-   showNotification(
-       id: notificationId + 7000,
-       title: 'Trading Reminder',
-       body: 'Some companies have result day today!',
-       scheduledNotificationDateTime: notificationDate,
-       flip: flip,
-       hour: 15,
-       min: 30);
-
-  }
-
-  Future showNotification(
-      {int id = 0,
+  Future scheduleNotification(
+      {
+        int? id,
         String? title,
         String? body,
         String? payLoad,
-        required FlutterLocalNotificationsPlugin flip,
-        required int hour,
-        required int min,
-        required DateTime scheduledNotificationDateTime}) async {
+        required DateTime scheduledNotificationDt}) async {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String locationName = prefs.getString('location') ?? 'India/Kolkata';
-    tz.initializeTimeZones();
+    //tz.initializeTimeZones();
     tz.Location location = tz.getLocation(locationName);
     final now = tz.TZDateTime.now(location);
 
-    final localNotificationDate = tz.TZDateTime.from(scheduledNotificationDateTime, location);
+    final localNotificationDate = tz.TZDateTime.from(scheduledNotificationDt, location);
 
     tz.TZDateTime getNotificationDate() {
-      tz.TZDateTime scheduledDate = tz.TZDateTime(location, localNotificationDate.year,
-          localNotificationDate.month, localNotificationDate.day, hour, min);
+      tz.TZDateTime scheduledDate = tz.TZDateTime(
+          location,
+          localNotificationDate.year,
+          localNotificationDate.month,
+          localNotificationDate.day,
+          localNotificationDate.hour,
+          localNotificationDate.minute);
       return scheduledDate;
     }
 
     print("---------------------------------------------------");
     print("Scheduled Date");
+    print(now);
     print(getNotificationDate());
     print("---------------------------------------------------");
 
+    print("---------------------------------------------------");
+    print("Notification Id");
+    print(id);
+    print("---------------------------------------------------");
+
     if (getNotificationDate().isAfter(now)) {
-      await flip.zonedSchedule(
-          id,
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+          id!,
           title,
           body,
           getNotificationDate(),
-          await notificationDetails(),
+          notificationDetails(),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          //androidAllowWhileIdle: true,
           uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime);
 
@@ -143,4 +102,5 @@ class NotificationService {
     }
 
   }
+
 }
