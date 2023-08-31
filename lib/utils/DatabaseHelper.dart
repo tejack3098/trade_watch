@@ -33,7 +33,7 @@ class DatabaseHelper {
   void _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS companydata (
-        id INTEGER PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         company_name TEXT NOT NULL,
         date DATETIME NOT NULL,
         notification_id INTEGER
@@ -44,6 +44,17 @@ class DatabaseHelper {
   // Insert a new company with date into the database
   Future<int> insertCompany(String name, DateTime date, int notificationId) async {
     Database db = await database;
+
+    List<Map<String, dynamic>> existingCompanies = await db.query(
+      'companydata',
+      where: 'LOWER(company_name) = ?',
+      whereArgs: [name.toLowerCase()],
+    );
+
+    if (existingCompanies.isNotEmpty) {
+      return -1;
+    }
+
     Map<String, dynamic> company = {
       'company_name': name,
       'date': date.toIso8601String(),

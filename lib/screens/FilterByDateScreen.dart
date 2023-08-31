@@ -50,7 +50,7 @@ class _FilterByDateScreenState extends State<FilterByDateScreen> {
   void _sortFilteredCompaniesFromCurrentDate(){
     _filteredCompanies = _filteredCompanies.where((company) {
       DateTime companyDate = DateTime.parse(company['date']);
-      return companyDate.isAfter(currentDate.subtract(const Duration(days:1)));
+      return companyDate.isAfter(currentDate.subtract(const Duration(minutes: 5)));
     }).toList();
 
     _filteredCompanies.sort((a, b) => DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])));
@@ -103,15 +103,22 @@ class _FilterByDateScreenState extends State<FilterByDateScreen> {
                 backgroundColor: Colors.white70, // Change the button color
               ),
               onPressed: _selectDate,
-              child: Text(
-                _selectedDate != null
-                    ? 'Selected Date: ${_selectedDate.toString().substring(0, 10)}'
-                    : 'Select Date',
-                style: const TextStyle(
-                    color: Colors.blueGrey,
-                    fontSize: 16.0,
-                    fontWeight: FontWeight.w800,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center, // Center the icon and text horizontally
+                children: [
+                  const Icon(Icons.filter_list_alt, color: Colors.blueGrey,), // Add your desired icon here
+                  const SizedBox(width: 8.0), // Add a small space between the icon and text
+                  Text(
+                    _selectedDate != null
+                        ? 'Selected Date: ${_selectedDate.toString().substring(0, 10)}'
+                        : 'Select Date',
+                    style: const TextStyle(
+                      color: Colors.blueGrey,
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -19,6 +19,7 @@ class _ManageCompanyScreenState extends State<ManageCompanyScreen> {
 
   final TextEditingController _companyNameController = TextEditingController();
   Random random = Random();
+  final _payloadController = TextEditingController();
 
   bool _notificationsEnabled = false;
 
@@ -53,51 +54,70 @@ class _ManageCompanyScreenState extends State<ManageCompanyScreen> {
     }
   }
 
-  Future<bool> _insertCompanyData() async {
+  Future<int> _insertCompanyData() async {
     if (_companyNameController.text.isNotEmpty && _selectedDate != null && _selectedTime != null) {
       int notificationId = random.nextInt(2147483647);
       String companyName = _companyNameController.text;
+      String payload = _payloadController.text;
       DateTime notificationDt = DateTime(_selectedDate!.year, _selectedDate!.month, _selectedDate!.day, _selectedTime!.hour,_selectedTime!.minute);
       int insertedCompanyId =
           await DatabaseHelper().insertCompany(companyName, notificationDt!, notificationId);
 
       _companyNameController.clear();
+      _payloadController.clear();
 
       setState(() {
         _selectedDate = null;
         _selectedTime = null;
+
       });
 
+      if(insertedCompanyId == -1){
+        return -1;
+      }
+
       if(_notificationsEnabled) {
-        NotificationService().
+        bool notificationStatus = await NotificationService().
         scheduleNotification(
             id: notificationId,
             title: 'Trading Reminder',
-            body: '$companyName have result day today!',
+            body: '$companyName have result day today! $payload',
+            payLoad: payload,
             scheduledNotificationDt: notificationDt
         );
+
+        if(notificationStatus){
+          return 1;
+        }
       }
 
-      return true;
+      return 2;
     }
     else {
-      return false;
+      return 0;
     }
   }
 
-  Widget getAlertMessage(bool insertionStatus){
-    if(_notificationsEnabled && insertionStatus){
-      return const Text('Company Added and Notification Set');
+  Widget getAlertMessage(int insertionStatus){
+    if(_notificationsEnabled && (insertionStatus == 1)){
+      return const Text('Company Added and Notification Set!', style: TextStyle(fontSize: 16));
     }
-    else if (insertionStatus){
-      return const Text('Company Added. Notification Permissions denied');
+    else if (insertionStatus == 2){
+      return const Text('Company Added! Notification Overdue', style: TextStyle(fontSize: 16));
+    }
+    else if (insertionStatus == 1){
+      return const Text('Company Added. Notification Permissions denied!', style: TextStyle(fontSize: 16));
+    }
+    else if (insertionStatus == -1){
+      return const Text('Company Already Exists!', style: TextStyle(fontSize: 16));
     }
     else{
-      return const Text('Something Went Wrong');
+      return const Text('Something Went Wrong!', style: TextStyle(fontSize: 16));
+
     }
   }
 
-  void _insertionAlert(bool insertionStatus) {
+  void _insertionAlert(int insertionStatus) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -155,11 +175,24 @@ class _ManageCompanyScreenState extends State<ManageCompanyScreen> {
 
       final bool? grantedNotificationPermission =
       await androidImplementation?.requestPermission();
-      await androidImplementation?.createNotificationChannel(const AndroidNotificationChannel('tradingReminderChannelId', 'tradingReminderChannelName'));
+      await androidImplementation?.createNotificationChannel(const AndroidNotificationChannel(
+          'tradingReminderChannelId',
+          'tradingReminderChannel',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true
+      ));
       setState(() {
         _notificationsEnabled = grantedNotificationPermission ?? false;
       });
     }
+  }
+
+  String formatTimeOfDay(TimeOfDay timeOfDay) {
+    final now = DateTime.now();
+    final dateTime = DateTime(now.year, now.month, now.day, timeOfDay.hour, timeOfDay.minute);
+    final formattedTime = DateFormat.jm().format(dateTime);
+    return formattedTime;
   }
 
   @override
@@ -170,7 +203,7 @@ class _ManageCompanyScreenState extends State<ManageCompanyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -217,26 +250,52 @@ class _ManageCompanyScreenState extends State<ManageCompanyScreen> {
               ),
               onPressed: ()  => _selectTime(context),
                 child: Text(_selectedTime != null
-                    ? 'Selected Time: ${_selectedTime!.hour - _selectedTime!.periodOffset}:${_selectedTime!.minute} ${_selectedTime?.period.name}'
+                    ? 'Selected Time: ${formatTimeOfDay(_selectedTime!)}'
                     : 'Select Notification Time'),
             ),
           ),
-          const SizedBox(height: 100.0),
+          const SizedBox(height: 20.0),
+          SizedBox(
+            height: 60,
+            child: TextField(
+              controller: _payloadController,
+              style: const TextStyle(color: Colors.blueGrey),
+              decoration: const InputDecoration(
+                filled: true,
+                fillColor: Colors.white70,
+                hintText: 'Notification Message',
+                hintStyle: TextStyle(color: Colors.blueGrey),
+                prefixIcon: Icon(
+                  Icons.message,
+                  color: Colors.blueGrey,
+                ),
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 75.0),
           SizedBox(
             height: 60,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white70,
                   foregroundColor: Colors.blueGrey,
-                  textStyle: const TextStyle(fontSize: 16,fontWeight: FontWeight.w700)
+                  textStyle: const TextStyle(fontSize: 16,fontWeight: FontWeight.w700),
               ),
               onPressed: () async {
 
-                bool insertStatus = await _insertCompanyData();
+                int insertStatus = await _insertCompanyData();
                 _insertionAlert(insertStatus);
 
               },
-              child: const Text('Insert Company Data'),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center, // Center the icon and text horizontally
+                children: [
+                  Icon(Icons.add_box_outlined), // Add your desired icon here
+                  SizedBox(width: 8.0), // Add a small space between the icon and text
+                  Text('Insert Company Data'),
+                ],
+              ),
             ),
           ),
         ],

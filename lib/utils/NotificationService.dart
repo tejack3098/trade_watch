@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 
@@ -39,15 +40,16 @@ class NotificationService {
     return const NotificationDetails(
         android: AndroidNotificationDetails(
             'tradingReminderChannelId',
-            'tradingReminderChannelName',
-            channelDescription:'tradingReminderDescription',
+            'tradingReminderChannel',
+            channelDescription:'Sends trading notification reminders',
             importance: Importance.max,
+            enableVibration: true,
             priority: Priority.max,
             playSound: true),
         iOS: DarwinNotificationDetails());
   }
 
-  Future scheduleNotification(
+  Future<bool> scheduleNotification(
       {
         int? id,
         String? title,
@@ -57,7 +59,7 @@ class NotificationService {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String locationName = prefs.getString('location') ?? 'India/Kolkata';
-    //tz.initializeTimeZones();
+
     tz.Location location = tz.getLocation(locationName);
     final now = tz.TZDateTime.now(location);
 
@@ -88,8 +90,8 @@ class NotificationService {
     if (getNotificationDate().isAfter(now)) {
       await flutterLocalNotificationsPlugin.zonedSchedule(
           id!,
-          title,
-          body,
+          toBeginningOfSentenceCase(title),
+          toBeginningOfSentenceCase(body),
           getNotificationDate(),
           notificationDetails(),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -99,8 +101,9 @@ class NotificationService {
       print('------------------------------------------------');
       print('Notification scheduled');
       print('------------------------------------------------');
+      return true;
     }
-
+    return false;
   }
 
 }
